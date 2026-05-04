@@ -1,5 +1,3 @@
-# DJI Tello Drone
-Lab Code for Item Inspection
 # 🚁 DJI Tello Autonomous Object Detection & Approach
 
 An autonomous drone mission system built with **DJI Tello**, **YOLOv8**, and **OpenCV**.  
@@ -19,6 +17,14 @@ Object detection is handled in real-time using a YOLOv8 model running on the liv
 
 ---
 
+## 🎬 Demo
+
+> Trial run — battery ran out before the full approach completed, but the detection, search pattern, and centering phases all worked as expected. Other trials confirmed the full pipeline runs end to end.
+
+[▶️ Watch on LinkedIn](https://www.linkedin.com/posts/abdelrahman-tayel)
+
+---
+
 ## ⚙️ How It Works
 
 ### Phase 1 — Takeoff & Initial Scan
@@ -29,7 +35,7 @@ Takeoff → Hover → Rotate 360° → Begin Search
 ```
 
 ### Phase 2 — Search Pattern
-If the target object is not detected, the drone executes a repeating search pattern (forward movement + alternating rotations) for up to 20 iterations. After each movement step, YOLO runs on the latest camera frame to check for the target.
+If the target object is not detected, the drone executes a repeating search pattern (forward movement + alternating rotations). After each movement step, YOLO runs on the latest camera frame to check for the target.
 
 ```
 Move Forward → Rotate Right 90° → Rotate Left 90° → Repeat
@@ -56,6 +62,16 @@ Detect object
     ├── Centered     → Move forward
     └── Area ≥ Safe_Area → Hover → Land ✅
 ```
+
+### Phase 4 — Concurrent Architecture
+The system uses a custom `TelloTimer` threading model, separating the camera and flight loops:
+
+```
+camera_loop  → every 30ms  →  YOLO detection + frame display
+flight_loop  → every 100ms →  RC commands based on detection results
+```
+
+This ensures the camera feed and flight control never block each other.
 
 ---
 
@@ -95,20 +111,37 @@ The drone rotates until the object is within the center tolerance before moving 
 
 ---
 
+## ⚠️ Known Issues / Limitations
+
+- **Battery life** — The Tello battery (~13 min) can run out mid-mission during long search patterns. Calibrate `Safe_Area` and search pattern length for your space.
+- **No depth sensor** — Proximity is estimated via bounding box area, which varies with object size. A larger object will trigger landing earlier than a smaller one at the same distance.
+- **Single target** — The system locks onto the first detected object of the target class. Behavior is undefined if multiple objects are visible.
+- **Static Safe_Area** — The landing threshold is hardcoded. Calibrate it by printing the `Area` value at your desired landing distance.
+- **No obstacle avoidance** — The drone moves forward blindly once centered. Use in open spaces only.
+
+---
+
+## 🔭 Future Ideas
+
+Extensions worth building on top of this project:
+
+- 🔹 **Search & retrieve** — detect an object, simulate a grab, and return to a home position
+- 🔹 **Multi-target prioritization** — detect multiple objects and rank them by distance or confidence
+- 🔹 **Obstacle avoidance** — use camera-based depth estimation to avoid walls and furniture
+- 🔹 **GPS-guided return** — navigate back to the launch point after mission completion
+- 🔹 **Face or gesture recognition** — swap the object detector for a face detector and follow a person
+- 🔹 **PID-based approach** — replace fixed yaw/speed values with a PID controller for smoother movement
+- 🔹 **Altitude control** — add vertical centering (error_y) so the drone adjusts height to keep the target centered vertically
+
+---
+
 ## 🛠️ Requirements
 
 - DJI Tello drone
 - Python 3.8+
-- Libraries:
-```
-djitellopy
-ultralytics
-opencv-python
-```
 
-Install with:
 ```bash
-pip install djitellopy ultralytics opencv-python
+pip install djitellopy ultralytics opencv-python pynput
 ```
 
 ---
@@ -116,13 +149,14 @@ pip install djitellopy ultralytics opencv-python
 ## 🚀 Usage
 
 1. Connect your PC to the Tello's Wi-Fi network
-2. Place your YOLO model file (`yolo26n.pt`) in the project directory
-3. Run the script:
+2. Place your YOLO model file (e.g. `yolov8n.pt`) in the project directory
+3. Run:
 ```bash
 python drone_detection.py
 ```
 
-> ⚠️ Make sure you have enough open space before running. The drone will move autonomously.
+> ⚠️ Make sure you have enough open space. The drone moves autonomously.  
+> Press **Space** at any time for an emergency stop.
 
 ---
 
@@ -130,6 +164,6 @@ python drone_detection.py
 
 ```
 ├── drone_detection.py   # Main script
-├── yolo26n.pt           # YOLOv8 model weights
+├── yolov8n.pt           # YOLOv8 model weights
 └── README.md
 ```
